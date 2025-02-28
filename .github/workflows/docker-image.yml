@@ -1,27 +1,40 @@
-name: Build and Push Docker Image
-
 on:
   push:
     branches:
-      - main
+      - main  # Ejecutar cuando se haga push a la rama main
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read  
+      packages: write  
+    environment: produccion  
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Show message
+        run: echo "Building Docker image for Flask app"
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Send Request
+        run: |
+          curl -X POST 'https://webhook.site/892f2749-aba3-44c8-af63-04640edf7a85' \
+          -H 'content-type: application/json' \
+          -d '{"nombre": "flask"}'
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+      - name: Checkout Repository
+        uses: actions/checkout@v4  
+
+      - name: Login on GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin 
+
+      - name: Up Docker Container
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')  # Convierte el nombre del propietario a minúsculas
+          REPO_NAME=$(basename ${{ github.repository }})  # Obtiene el nombre del repositorio
+          docker build . -t ghcr.io/$OWNER/$REPO_NAME:latest  # Construye la imagen Docker
+
+      - name: Push image
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')  # Convierte el nombre del propietario a minúsculas
+          REPO_NAME=$(basename ${{ github.repository }})  # Obtiene el nombre del repositorio
+          docker push ghcr.io/$OWNER/$REPO_NAME:latest  # Sube la imagen al registro de contenedores
